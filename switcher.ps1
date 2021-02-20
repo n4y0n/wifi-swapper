@@ -13,7 +13,7 @@ $coreVersion = "0.0.0"
 # Functions
 
 function Download-Self {
-    Invoke-RestMethod -OutFile $scriptPath -Uri "${githubBaseUrl}/switcher.ps1"
+    Invoke-RestMethod -OutFile "./scriptnamehere.ps1" -Uri "${githubBaseUrl}/switcher.ps1"
 }
 
 function List-Commands {
