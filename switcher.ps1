@@ -1,19 +1,38 @@
 param (
     [switch] $client5,
     [switch] $client2,
+    [switch] $interfaces,
     [switch] $help,
     [string] $output = ""
 )
 
 # Setup
+$routerIP = "10.0.0.1"
+$routerUser = "root"
+$routerPassword = "L34vemeal0"
 
+$coreVersion = "0.0.1"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
-$coreVersion = "0.0.0"
+
+$connection = ".\plink.exe -ssh " + $routerUser + "@" + $routerIP + " -pw " + $routerPassword + " -no-antispoof"
 
 # Functions
 
+function Fetch-Wireless-Networks {
+    Ssh-Command '"uci show wireless"'
+}
+
+function Ssh-Command($str) {
+    $command = $connection + " " + $str
+    IEX $command
+}
+
+function List-Interfaces {
+    Fetch-Wireless-Networks | Where-Object { $_.Contains("ssid") } | ForEach-Object { "Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ")  }
+}
+
 function Download-Self {
-    Invoke-RestMethod -OutFile "./scriptnamehere.ps1" -Uri "${githubBaseUrl}/switcher.ps1"
+    Invoke-RestMethod -OutFile "./switcher.ps1" -Uri "${githubBaseUrl}/switcher.ps1"
 }
 
 function List-Commands {
@@ -22,6 +41,7 @@ Available commands:
 
 -client5
 -client2
+-interfaces
 -help
 
 "
@@ -84,6 +104,9 @@ elseif ($client2) {
     Write-Line "Disabling 5Ghz client"
 
     Write-Line "Enabling 5Ghz hotspot"
+}
+elseif($interfaces) {
+    List-Interfaces
 }
 elseif ($help) {
     List-Commands
