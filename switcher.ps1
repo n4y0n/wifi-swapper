@@ -2,6 +2,7 @@ param (
     [switch] $client5,
     [switch] $client2,
     [switch] $interfaces,
+    [switch] $status,
     [switch] $help,
     [string] $output = ""
 )
@@ -22,9 +23,18 @@ function Fetch-Wireless-Networks {
     Ssh-Command '"uci show wireless"'
 }
 
+function Fetch-Status {
+    Ssh-Command '"wifi status"'
+}
+
 function Ssh-Command($str) {
     $command = $connection + " " + $str
     IEX $command
+}
+
+function Print-Wifi-Status($obj) {
+   $obj | ForEach-Object {"Section: " + $_.section + "`n`tInterface: " + $_.ifname + "`n`tMode: " + $_.config.mode + "`n`tSSID: " + $_.config.ssid }
+   Write-Line
 }
 
 function List-Interfaces {
@@ -42,6 +52,7 @@ Available commands:
 -client5
 -client2
 -interfaces
+-status
 -help
 
 "
@@ -107,6 +118,14 @@ elseif ($client2) {
 }
 elseif($interfaces) {
     List-Interfaces
+}
+elseif($status) {
+    $jsonStatus = (Fetch-Status | ConvertFrom-Json)
+    $Iradio0 = $jsonStatus.radio0.interfaces
+    $Iradio1 = $jsonStatus.radio1.interfaces
+
+    Print-Wifi-Status $Iradio0
+    Print-Wifi-Status $Iradio1
 }
 elseif ($help) {
     List-Commands
