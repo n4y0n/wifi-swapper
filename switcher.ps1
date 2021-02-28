@@ -10,7 +10,7 @@ param (
 # Setup
 $routerIP = "10.0.0.1"
 $routerUser = "root"
-$routerPassword = "L34vemeal0"
+$routerPassword = "password"
 
 $coreVersion = "0.0.1"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
@@ -19,26 +19,47 @@ $connection = ".\plink.exe -ssh " + $routerUser + "@" + $routerIP + " -pw " + $r
 
 # Functions
 
-function Fetch-Wireless-Networks {
-    Ssh-Command '"uci show wireless"'
-}
-
-function Fetch-Status {
-    Ssh-Command '"wifi status"'
-}
-
-function Ssh-Command($str) {
+function Invoke-RemoteCommand($str) {
     $command = $connection + " " + $str
-    IEX $command
+    Invoke-Expression $command
 }
 
-function Print-Wifi-Status($obj) {
+function Read-WifiStatus($obj) {
    $obj | ForEach-Object {"Section: " + $_.section + "`n`tInterface: " + $_.ifname + "`n`tMode: " + $_.config.mode + "`n`tSSID: " + $_.config.ssid }
    Write-Line
 }
 
-function List-Interfaces {
-    Fetch-Wireless-Networks | Where-Object { $_.Contains("ssid") } | ForEach-Object { "Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ")  }
+function Read-WifiDevices {
+    Invoke-RemoteCommand "uci show wireless" | Where-Object { $_.Contains("ssid") } | ForEach-Object { "Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ")  }
+}
+
+function Toggle-WifiInterface($ifname) {
+    $device = Invoke-RemoteCommand "`"uci get wireless.$ifname`"" 2>$null
+
+    if ($device -ne "wifi-iface") {
+        Write-Line "No Interface $ifname found"
+        exit
+    }
+
+    $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
+
+    $name = Invoke-RemoteCommand "`"uci get wireless.$ifname.ssid`"" 2>$null
+    if ($disabled -eq "1") {
+        Write-Line "$name disabled."
+        Write-Line "Enabling $name."
+
+        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='0'`"" 2>$null
+        Invoke-RemoteCommand "`"uci commit`"" 2>$null
+        Invoke-RemoteCommand "`"wifi`"" 2>$null
+    } else {
+        Write-Line "$name enabled."
+        Write-Line "Disabling $name."
+
+        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='1'`"" 2>$null
+        Invoke-RemoteCommand "`"uci commit`"" 2>$null
+        Invoke-RemoteCommand "`"wifi`"" 2>$null
+    }
+    
 }
 
 function Download-Self {
@@ -117,15 +138,15 @@ elseif ($client2) {
     Write-Line "Enabling 5Ghz hotspot"
 }
 elseif($interfaces) {
-    List-Interfaces
+    Read-WifiDevices
 }
 elseif($status) {
-    $jsonStatus = (Fetch-Status | ConvertFrom-Json)
+    $jsonStatus = (Invoke-RemoteCommand "wifi status" | ConvertFrom-Json)
     $Iradio0 = $jsonStatus.radio0.interfaces
     $Iradio1 = $jsonStatus.radio1.interfaces
 
-    Print-Wifi-Status $Iradio0
-    Print-Wifi-Status $Iradio1
+    Read-WifiStatus $Iradio0
+    Read-WifiStatus $Iradio1
 }
 elseif ($help) {
     List-Commands
@@ -135,3 +156,5 @@ else {
     Write-Line ""
     List-Commands
 }
+
+Toggle-WifiInterface "wifinet2"
