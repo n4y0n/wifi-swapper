@@ -23,12 +23,13 @@ $24ghzAPInterfaceName = "wifinet4"
 $coreVersion = "1.0.2"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
 
-$connection = ".\plink.exe -ssh " + $routerUser + "@" + $routerIP + " -pw " + $routerPassword + " -no-antispoof"
+$plink = ".\plink.exe"
+$connection = "$plink -ssh $routerUser@$routerIP -pw $routerPassword -no-antispoof"
 
 # Functions
 
 function Invoke-RemoteCommand($str) {
-    $command = $connection + " " + $str
+    $command = "$connection $str"
     Invoke-Expression $command
 }
 
