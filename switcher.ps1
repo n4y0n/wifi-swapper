@@ -10,7 +10,14 @@ param (
 # Setup
 $routerIP = "10.0.0.1"
 $routerUser = "root"
-$routerPassword = "password"
+$routerPassword = "L34vemeal0"
+
+# CHANGE ME
+# Find interface names using switcher.ps1 -interfaces
+$5ghzClientInterfaceName = "wifinet3"
+$24ghzClientInterfaceName = "wifinet2"
+$5ghzAPInterfaceName = "default_radio0"
+$24ghzAPInterfaceName = "wifiner4"
 
 $coreVersion = "0.0.1"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
@@ -42,24 +49,52 @@ function Toggle-WifiInterface($ifname) {
     }
 
     $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
-
     $name = Invoke-RemoteCommand "`"uci get wireless.$ifname.ssid`"" 2>$null
+
     if ($disabled -eq "1") {
-        Write-Line "$name disabled."
-        Write-Line "Enabling $name."
-
-        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='0'`"" 2>$null
-        Invoke-RemoteCommand "`"uci commit`"" 2>$null
-        Invoke-RemoteCommand "`"wifi`"" 2>$null
+        Enable-WifiInterface $ifname
+        Write-Line "Enabled $name."
     } else {
-        Write-Line "$name enabled."
-        Write-Line "Disabling $name."
-
-        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='1'`"" 2>$null
-        Invoke-RemoteCommand "`"uci commit`"" 2>$null
-        Invoke-RemoteCommand "`"wifi`"" 2>$null
+        Disable-WifiInterface $ifname    
+        Write-Line "Disabled $name."
     }
     
+}
+
+function Disable-WifiInterface($ifname) {
+    $device = Invoke-RemoteCommand "`"uci get wireless.$ifname`"" 2>$null
+
+    if ($device -ne "wifi-iface") {
+        Write-Line "No Interface $ifname found"
+        exit
+    }
+
+    $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
+    if ($disabled -eq "1") {
+        exit
+    }
+
+    Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='1'`"" 2>$null
+    Invoke-RemoteCommand "`"uci commit`"" 2>$null
+    Invoke-RemoteCommand "`"wifi`"" 2>$null
+}
+
+function Enable-WifiInterface($ifname) {
+    $device = Invoke-RemoteCommand "`"uci get wireless.$ifname`"" 2>$null
+
+    if ($device -ne "wifi-iface") {
+        Write-Line "No Interface $ifname found"
+        exit
+    }
+
+    $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
+    if ($disabled -ne "1") {
+        exit
+    }
+
+    Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='0'`"" 2>$null
+    Invoke-RemoteCommand "`"uci commit`"" 2>$null
+    Invoke-RemoteCommand "`"wifi`"" 2>$null
 }
 
 function Download-Self {
@@ -114,7 +149,6 @@ Write-Line ""
 # Commands
 
 if ($client5) {
-    # Invoke-Expression "& `"$scriptsDir\run.ps1`" -install -outputDir `"$output`" -coreVersion $coreVersion -webVersion $webVersion"
     Write-Line "Swap 5Ghz to 2.4Ghz client"
     Write-Line "Disablig 5Ghz hotspot"
 
@@ -126,7 +160,6 @@ if ($client5) {
     Write-Line "Enabling 2.4Ghz hotspot"
 }
 elseif ($client2) {
-    # Invoke-Expression "& `"$scriptsDir\run.ps1`" -update -outputDir `"$output`" -coreVersion $coreVersion -webVersion $webVersion"
     Write-Line "Swap 2.4Ghz to 5Ghz client"
     Write-Line "Disablig 2.4Ghz hotspot"
 
@@ -156,5 +189,3 @@ else {
     Write-Line ""
     List-Commands
 }
-
-Toggle-WifiInterface "wifinet2"
