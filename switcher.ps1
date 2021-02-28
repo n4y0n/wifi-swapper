@@ -3,6 +3,7 @@ param (
     [switch] $client2,
     [switch] $interfaces,
     [switch] $status,
+    [switch] $noheadless,
     [switch] $help,
     [string] $output = ""
 )
@@ -19,7 +20,7 @@ $24ghzClientInterfaceName = "wifinet2"
 $5ghzAPInterfaceName = "default_radio0"
 $24ghzAPInterfaceName = "wifinet4"
 
-$coreVersion = "1.0.0"
+$coreVersion = "1.0.2"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
 
 $connection = ".\plink.exe -ssh " + $routerUser + "@" + $routerIP + " -pw " + $routerPassword + " -no-antispoof"
@@ -32,12 +33,12 @@ function Invoke-RemoteCommand($str) {
 }
 
 function Read-WifiStatus($obj) {
-   $obj | ForEach-Object {"Section: " + $_.section + "`n`tInterface: " + $_.ifname + "`n`tMode: " + $_.config.mode + "`n`tSSID: " + $_.config.ssid }
-   Write-Line
+    $obj | ForEach-Object { "Section: " + $_.section + "`n`tInterface: " + $_.ifname + "`n`tMode: " + $_.config.mode + "`n`tSSID: " + $_.config.ssid }
+    Write-Line
 }
 
 function Read-WifiDevices {
-    Invoke-RemoteCommand "uci show wireless" | Where-Object { $_.Contains("ssid") } | ForEach-Object { "Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ")  }
+    Invoke-RemoteCommand "uci show wireless" | Where-Object { $_.Contains("ssid") } | ForEach-Object { "Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ") }
 }
 
 function Toggle-WifiInterface($ifname) {
@@ -54,7 +55,8 @@ function Toggle-WifiInterface($ifname) {
     if ($disabled -eq "1") {
         Enable-WifiInterface $ifname
         Write-Line "Enabled $name."
-    } else {
+    }
+    else {
         Disable-WifiInterface $ifname    
         Write-Line "Disabled $name."
     }
@@ -103,6 +105,36 @@ function Download-Self {
     Invoke-RestMethod -OutFile "./switcher.ps1" -Uri "${githubBaseUrl}/switcher.ps1"
 }
 
+function Client2 {
+    Write-Line "Enabling 2.4Ghz client"
+    Enable-WifiInterface $24ghzClientInterfaceName
+    Write-Line "Disablig 2.4Ghz AP"
+    Disable-WifiInterface $24ghzAPInterfaceName
+
+    Write-Line "Disablig 5Ghz client"
+    Disable-WifiInterface $5ghzClientInterfaceName
+    Write-Line "Enabling 5Ghz hotspot"
+    Enable-WifiInterface $5ghzAPInterfaceName
+
+    Commit-Changes
+    Reload-Settings
+}
+
+function Client5 {
+    Write-Line "Enabling 2.4Ghz hotspot"
+    Enable-WifiInterface $24ghzAPInterfaceName
+    Write-Line "Disabling 2.4Ghz client"
+    Disable-WifiInterface $24ghzClientInterfaceName
+
+    Write-Line "Enabling 5Ghz client"
+    Enable-WifiInterface $5ghzClientInterfaceName
+    Write-Line "Disablig 5Ghz hotspot"
+    Disable-WifiInterface $5ghzAPInterfaceName
+
+    Commit-Changes
+    Reload-Settings
+}
+
 function List-Commands {
     Write-Line "
 Available commands:
@@ -111,6 +143,7 @@ Available commands:
 -client2
 -interfaces
 -status
+-noheadless
 -help
 
 "
@@ -151,37 +184,15 @@ Write-Line ""
 # Commands
 
 if ($client5) {    
-    Write-Line "Enabling 2.4Ghz hotspot"
-    Enable-WifiInterface $24ghzAPInterfaceName
-    Write-Line "Disabling 2.4Ghz client"
-    Disable-WifiInterface $24ghzClientInterfaceName
-
-    Write-Line "Enabling 5Ghz client"
-    Enable-WifiInterface $5ghzClientInterfaceName
-    Write-Line "Disablig 5Ghz hotspot"
-    Disable-WifiInterface $5ghzAPInterfaceName
-
-    Commit-Changes
-    Reload-Settings
+    Client5
 }
 elseif ($client2) {
-    Write-Line "Enabling 2.4Ghz client"
-    Enable-WifiInterface $24ghzClientInterfaceName
-    Write-Line "Disablig 2.4Ghz AP"
-    Disable-WifiInterface $24ghzAPInterfaceName
-
-    Write-Line "Disablig 5Ghz client"
-    Disable-WifiInterface $5ghzClientInterfaceName
-    Write-Line "Enabling 5Ghz hotspot"
-    Enable-WifiInterface $5ghzAPInterfaceName
-
-    Commit-Changes
-    Reload-Settings
+    Client2
 }
-elseif($interfaces) {
+elseif ($interfaces) {
     Read-WifiDevices
 }
-elseif($status) {
+elseif ($status) {
     $jsonStatus = (Invoke-RemoteCommand "wifi status" | ConvertFrom-Json)
     $Iradio0 = $jsonStatus.radio0.interfaces
     $Iradio1 = $jsonStatus.radio1.interfaces
@@ -192,8 +203,32 @@ elseif($status) {
 elseif ($help) {
     List-Commands
 }
+elseif ($noheadless) {
+    Write-Line "==================================================="
+    Write-Line
+
+    Write-Line "Options: "
+    Write-Line "1 : 5Ghz client -> 2.4Ghz hotspot"
+    Write-Line "2 : 2.4Ghz client -> 5Ghz hotspot"
+
+    
+    $counter = 0
+    while (!$Host.UI.RawUI.KeyAvailable -and ($counter++ -lt 1000)) {
+        $key = $Host.UI.RawUI.ReadKey()
+        if ($key.Character -eq '1') {
+            Write-Line
+            Client5
+        } elseif ($key.Character -eq '2') {
+            Write-Line
+            Client2
+        }
+
+        [Threading.Thread]::Sleep( 1000 )
+    }
+
+}
 else {
-    Write-Line "No command found."
+    Write-Line "No command from command line found."
     Write-Line ""
     List-Commands
 }
