@@ -224,6 +224,8 @@ elseif ($noheadless) {
             Client2
         }
 
+        Write-Line "Done!"
+        Write-Line "Press any key to exit..."
         [Threading.Thread]::Sleep( 1000 )
     }
 
