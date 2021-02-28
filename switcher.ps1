@@ -11,7 +11,7 @@ param (
 # Setup
 $routerIP = "10.0.0.1"
 $routerUser = "root"
-$routerPassword = "L34vemeal0"
+$routerPassword = "iLozBkZb2CvCNz"
 
 # CHANGE ME
 # Find interface names using switcher.ps1 -interfaces
