@@ -17,9 +17,9 @@ $routerPassword = "L34vemeal0"
 $5ghzClientInterfaceName = "wifinet3"
 $24ghzClientInterfaceName = "wifinet2"
 $5ghzAPInterfaceName = "default_radio0"
-$24ghzAPInterfaceName = "wifiner4"
+$24ghzAPInterfaceName = "wifinet4"
 
-$coreVersion = "0.0.1"
+$coreVersion = "1.0.0"
 $githubBaseUrl = "https://raw.githubusercontent.com/n4y0n/wifi-swapper/master"
 
 $connection = ".\plink.exe -ssh " + $routerUser + "@" + $routerIP + " -pw " + $routerPassword + " -no-antispoof"
@@ -59,6 +59,8 @@ function Toggle-WifiInterface($ifname) {
         Write-Line "Disabled $name."
     }
     
+    Commit-Changes
+    Reload-Settings
 }
 
 function Disable-WifiInterface($ifname) {
@@ -70,13 +72,9 @@ function Disable-WifiInterface($ifname) {
     }
 
     $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
-    if ($disabled -eq "1") {
-        exit
+    if ($disabled -ne "1") {
+        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='1'`"" 2>$null
     }
-
-    Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='1'`"" 2>$null
-    Invoke-RemoteCommand "`"uci commit`"" 2>$null
-    Invoke-RemoteCommand "`"wifi`"" 2>$null
 }
 
 function Enable-WifiInterface($ifname) {
@@ -88,12 +86,16 @@ function Enable-WifiInterface($ifname) {
     }
 
     $disabled = Invoke-RemoteCommand "`"uci get wireless.$ifname.disabled`"" 2>$null
-    if ($disabled -ne "1") {
-        exit
+    if ($disabled -eq "1") {
+        Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='0'`"" 2>$null
     }
+}
 
-    Invoke-RemoteCommand "`"uci set wireless.$ifname.disabled='0'`"" 2>$null
+function Commit-Changes {
     Invoke-RemoteCommand "`"uci commit`"" 2>$null
+}
+
+function Reload-Settings {
     Invoke-RemoteCommand "`"wifi`"" 2>$null
 }
 
@@ -148,27 +150,33 @@ Write-Line ""
 
 # Commands
 
-if ($client5) {
-    Write-Line "Swap 5Ghz to 2.4Ghz client"
-    Write-Line "Disablig 5Ghz hotspot"
+if ($client5) {    
+    Write-Line "Enabling 2.4Ghz hotspot"
+    Enable-WifiInterface $24ghzAPInterfaceName
+    Write-Line "Disabling 2.4Ghz client"
+    Disable-WifiInterface $24ghzClientInterfaceName
 
     Write-Line "Enabling 5Ghz client"
+    Enable-WifiInterface $5ghzClientInterfaceName
+    Write-Line "Disablig 5Ghz hotspot"
+    Disable-WifiInterface $5ghzAPInterfaceName
 
-    Write-Line "Swap 2.4Ghz to 5Ghz hotspot"
-    Write-Line "Disabling 2.4Ghz client"
-
-    Write-Line "Enabling 2.4Ghz hotspot"
+    Commit-Changes
+    Reload-Settings
 }
 elseif ($client2) {
-    Write-Line "Swap 2.4Ghz to 5Ghz client"
-    Write-Line "Disablig 2.4Ghz hotspot"
-
     Write-Line "Enabling 2.4Ghz client"
+    Enable-WifiInterface $24ghzClientInterfaceName
+    Write-Line "Disablig 2.4Ghz AP"
+    Disable-WifiInterface $24ghzAPInterfaceName
 
-    Write-Line "Swap 5Ghz to 2.4Ghz hotspot"
-    Write-Line "Disabling 5Ghz client"
-
+    Write-Line "Disablig 5Ghz client"
+    Disable-WifiInterface $5ghzClientInterfaceName
     Write-Line "Enabling 5Ghz hotspot"
+    Enable-WifiInterface $5ghzAPInterfaceName
+
+    Commit-Changes
+    Reload-Settings
 }
 elseif($interfaces) {
     Read-WifiDevices
