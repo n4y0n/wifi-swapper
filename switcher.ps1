@@ -292,10 +292,32 @@ function Get-Status {
     Write-Log "=================="
 }
 function Set-Hotspot2 {
-    
+    Write-Log "Enabling 2.4Ghz hotspot"
+    Enable-WifiInterface $tap2.Text
+    Write-Log "Disabling 2.4Ghz client"
+    Disable-WifiInterface $tc2.Text
+
+    Write-Log "Enabling 5Ghz client"
+    Enable-WifiInterface $tc5.Text
+    Write-Log "Disablig 5Ghz hotspot"
+    Disable-WifiInterface $tap5.Text
+
+    Commit-Changes
+    Reload-Settings
 }
 function Set-Hotspot5 {
-    
+    Write-Log "Enabling 2.4Ghz client"
+    Enable-WifiInterface $tc2.Text
+    Write-Log "Disablig 2.4Ghz AP"
+    Disable-WifiInterface $tap2.Text
+
+    Write-Log "Disablig 5Ghz client"
+    Disable-WifiInterface $tc5.Text
+    Write-Log "Enabling 5Ghz hotspot"
+    Enable-WifiInterface $tap5.Text
+
+    Commit-Changes
+    Reload-Settings
 }
 function Get-Interfaces {
     $interfaces = Read-WifiDevices
