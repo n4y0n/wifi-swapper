@@ -202,8 +202,25 @@ function Read-WifiStatus($obj) {
 }
 
 function Read-WifiDevices {
-    $result = [System.Collections.ArrayList]@()
-    Invoke-RemoteCommand "uci show wireless" | Where-Object { $_.Contains("ssid") } | ForEach-Object { $result.Add("Interface: " + $_.replace("wireless.", "").replace(".ssid=", " -> ")) }
+    $result = @{}
+    Invoke-RemoteCommand "uci show wireless" | Where-Object { $_.Contains("ssid=") -or $_.Contains(".mode=") -or $_.Contains(".device=") } | ForEach-Object {
+        $splitted = $_.Split(".")
+        $name = $splitted.Get(1)
+        $sp2 = $splitted.Get(2).Replace("'", "").Split("=")
+
+        $pname = $sp2.Get(0)
+        $pvalue = $sp2.Get(1)
+
+        if ($result.ContainsKey($name)) {
+            $result[$name][$pname] = $pvalue
+        }
+        else {
+            $pdata = @{
+                $pname = $pvalue
+            }
+            $result[$name] = $pdata
+        }
+    }
     return $result
 }
 
@@ -320,8 +337,28 @@ function Set-Hotspot5 {
     Reload-Settings
 }
 function Get-Interfaces {
-    $interfaces = Read-WifiDevices
-    $interfaces | Where-Object { $_.GetType().Name -eq "String" } | ForEach-Object { Write-Log $_ }
+    $result = Read-WifiDevices
+    foreach ($key in $result.Keys) {
+        Write-Log "Interface Name: $key :"
+        foreach ($k2 in $result[$key].Keys) {
+            $val = $result[$key][$k2]
+            if ($val -eq "sta") {
+                $val = "Client"
+            }
+            elseif ($val -eq "ap") {
+                $val = "Hotspot"
+            }
+            elseif ($val -eq "radio0") {
+                $val = "5GHz"
+            }
+            elseif ($val -eq "radio1") {
+                $val = "2.4GHz"
+            }
+
+            Write-Log "`t$k2 : $val"
+        }
+        Write-Log
+    }
     Write-Log "=================="
 }
 
