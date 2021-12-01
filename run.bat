@@ -1,2 +1,2 @@
 @echo off
-Powershell.exe -executionpolicy remotesigned -File switcher.ps1
+Powershell.exe -executionpolicy bypass -File switcher.ps1
